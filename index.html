@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dual-Layer Grid Navigation</title>
+    <style>
+        :root {
+            --bg-color: #121212;
+            --layer1-color: #1e1e24;
+            --layer2-color: #1a2332;
+            --active-border: #00adb5;
+            --selected-item: #393e46;
+            --text-color: #eeeeee;
+        }
+
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .controls {
+            margin-bottom: 20px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        button {
+            background-color: #333;
+            color: white;
+            border: 2px solid #555;
+            padding: 10px 20px;
+            cursor: pointer;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+
+        button:hover {
+            background-color: #444;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
+            width: 100%;
+            max-width: 600px;
+        }
+
+        .layer {
+            padding: 20px;
+            border-radius: 8px;
+            border: 3px solid transparent;
+            transition: border-color 0.2s, opacity 0.2s;
+            opacity: 0.6;
+        }
+
+        .layer.active {
+            opacity: 1;
+            border-color: var(--active-border);
+        }
+
+        #layer1 { background-color: var(--layer1-color); }
+        #layer2 { background-color: var(--layer2-color); }
+
+        .layer h2 {
+            margin-top: 0;
+            margin-bottom: 15px;
+            font-size: 1.2rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .grid {
+            display: grid;
+            gap: 10px;
+        }
+
+        #layer1 .grid { grid-template-columns: repeat(4, 1fr); }
+        #layer2 .grid { grid-template-columns: repeat(3, 1fr); }
+
+        .grid-item {
+            background-color: rgba(255, 255, 255, 0.05);
+            border: 2px solid transparent;
+            padding: 20px 10px;
+            text-align: center;
+            border-radius: 4px;
+            font-weight: 500;
+            transition: all 0.1s;
+        }
+
+        /* Styling when a specific item inside the active layer is chosen */
+        .layer.active .grid-item.focused {
+            background-color: var(--selected-item);
+            border-color: var(--text-color);
+            transform: scale(1.05);
+        }
+
+        /* On-Screen D-Pad Controls */
+        .dpad {
+            margin-top: 30px;
+            display: grid;
+            grid-template-areas: 
+                ". up ."
+                "left . right"
+                ". down .";
+            gap: 5px;
+            width: 150px;
+            height: 150px;
+        }
+
+        .dpad button {
+            padding: 0;
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .btn-up { grid-area: up; }
+        .btn-left { grid-area: left; }
+        .btn-down { grid-area: down; }
+        .btn-right { grid-area: right; }
+    </style>
+</head>
+<body>
+
+    <div class="controls">
+        <button id="toggle-layer-btn">Switch Layer (Tab)</button>
+        <span id="current-layer-text">Active: Layer 1</span>
+    </div>
+
+    <div class="container">
+        <!-- Layer 1: 1x4 horizontal grid -->
+        <div id="layer1" class="layer active" data-rows="1" data-cols="4">
+            <h2>Layer 1: Main Menu (1 x 4)</h2>
+            <div class="grid">
+                <div class="grid-item focused" data-row="0" data-col="0">Home</div>
+                <div class="grid-item" data-row="0" data-col="1">Profile</div>
+                <div class="grid-item" data-row="0" data-col="2">Settings</div>
+                <div class="grid-item" data-row="0" data-col="3">Help</div>
+            </div>
+        </div>
+
+        <!-- Layer 2: 2x3 grid -->
+        <div id="layer2" class="layer" data-rows="2" data-cols="3">
+            <h2>Layer 2: Content Grid (2 x 3)</h2>
+            <div class="grid">
+                <div class="grid-item" data-row="0" data-col="0">Item 1</div>
+                <div class="grid-item" data-row="0" data-col="1">Item 2</div>
+                <div class="grid-item" data-row="0" data-col="2">Item 3</div>
+                <div class="grid-item" data-row="1" data-col="0">Item 4</div>
+                <div class="grid-item" data-row="1" data-col="1">Item 5</div>
+                <div class="grid-item" data-row="1" data-col="2">Item 6</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Directional Navigation Buttons -->
+    <div class="dpad">
+        <button class="btn-up" onclick="navigate('ArrowUp')">▲</button>
+        <button class="btn-left" onclick="navigate('ArrowLeft')">◀</button>
+        <button class="btn-down" onclick="navigate('ArrowDown')">▼</button>
+        <button class="btn-right" onclick="navigate('ArrowRight')">▶</button>
+    </div>
+
+    <script>
+        // Track state
+        let activeLayerId = 1;
+        
+        // Track the current coordinates for each layer independently
+        const layerPositions = {
+            1: { row: 0, col: 0 },
+            2: { row: 0, col: 0 }
+        };
+
+        const toggleButton = document.getElementById('toggle-layer-btn');
+        const statusText = document.getElementById('current-layer-text');
+
+        // Toggle focus between Layer 1 and Layer 2
+        function switchLayer() {
+            // Remove focus markers from current layout state
+            document.querySelector(`#layer${activeLayerId}`).classList.remove('active');
+            
+            // Toggle layer state
+            activeLayerId = activeLayerId === 1 ? 2 : 1;
+            
+            // Apply focus to the new layer
+            document.querySelector(`#layer${activeLayerId}`).classList.add('active');
+            statusText.textContent = `Active: Layer ${activeLayerId}`;
+            
+            // Refresh visual focus mapping
+            updateVisualFocus();
+        }
+
+        // Logic handling navigation inside the active layer grid dimensions
+        function navigate(direction) {
+            const currentLayer = document.getElementById(`layer${activeLayerId}`);
+            const maxRows = parseInt(currentLayer.getAttribute('data-rows'));
+            const maxCols = parseInt(currentLayer.getAttribute('data-cols'));
+            
+            let pos = layerPositions[activeLayerId];
+
+            if (direction === 'ArrowUp' && pos.row > 0) pos.row--;
+            else if (direction === 'ArrowDown' && pos.row < maxRows - 1) pos.row++;
+            else if (direction === 'ArrowLeft' && pos.col > 0) pos.col--;
+            else if (direction === 'ArrowRight' && pos.col < maxCols - 1) pos.col++;
+
+            updateVisualFocus();
+        }
+
+        // Applies CSS class to the grid element matching the active coordinates
+        function updateVisualFocus() {
+            // Strip focused classes from all items
+            document.querySelectorAll('.grid-item').forEach(item => item.classList.remove('focused'));
+            
+            // Highlight element on the active layer matching tracking state
+            const currentPos = layerPositions[activeLayerId];
+            const activeItem = document.querySelector(`#layer${activeLayerId} .grid-item[data-row="${currentPos.row}"][data-col="${currentPos.col}"]`);
+            
+            if (activeItem) {
+                activeItem.classList.add('focused');
+            }
+        }
+
+        // Keyboard event bindings
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'Tab') {
+                e.preventDefault(); // Stop default browser element shifting
+                switchLayer();
+            } else if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+                e.preventDefault(); // Stop window scrolling
+                navigate(e.key);
+            }
+        });
+
+        // Click event binding for UI button
+        toggleButton.addEventListener('click', switchLayer);
+    </script>
+</body>
+</html>
